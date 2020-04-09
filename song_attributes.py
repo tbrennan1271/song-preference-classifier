@@ -10,13 +10,18 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import tree
-import pandas as pd
+
+
+''' ---------- SETTINGS ---------- '''
 
 PLAYLIST = 'Music.csv'
 CURRENT_TOP = 'Top_Playlist.csv' 
 LABEL = 'LIKE'
 THRESHOLD_LIM = 5       # The number of sections the attributes will be divided into for the information gain
 TOP_N = 3               # Top n information gains to use in decision tree
+
+
+''' ---------- METHODS ---------- '''
 
 # In: name: file name  &  label: True if the data contains labels for data, and False if regular data
 # Out: data: array that contains all the data
@@ -66,8 +71,9 @@ def create_histograms(data, data_pop, attributes):
         temp = []
         temp_like = []
         temp_not_like = []
-        for feature in data[att]:
-            if data[LABEL][data[att].index(feature)] == 1:
+        for i in range(len(data[att])):
+            feature = data[att][i]
+            if data[LABEL][i] == 1:
                 temp_like.append(feature)
             else:
                 temp_not_like.append(feature)
@@ -79,9 +85,11 @@ def create_histograms(data, data_pop, attributes):
         plt.legend(loc='upper right')
         plt.title(att)
         plt.show()
-        print('My avg', att, ':', np.average(temp))
+        print('My avg', att, ':', np.average(temp_like))
+        print('Not like avg', att, ':', np.average(temp_not_like))
         print('Top avg', att, ':', np.average(temp))
             
+# Creates groups to be used to calculate information gain/fit the decision tree
 def create_groups(data, attributes):
     label_groups = {}
     group = {}
@@ -110,6 +118,7 @@ def create_groups(data, attributes):
             group[att][val][0] /= len(data[att])
     return group
 
+# Calculates the information gain for each attribute
 def information_gain(groups, attributes):
     ig = {}
     for att in attributes:
@@ -125,6 +134,36 @@ def information_gain(groups, attributes):
         ig[att] = final
     return ig
 
+# Determines the top n information gains and fits a decision tree based on that
+def decision_tree(info_gain, test, train_label):
+    top_n = {}
+    top_att = []
+    dt_input = []
+    for i in range(TOP_N):
+        max_ig = 0
+        max_att = ''
+        for att in info_gain:
+            ig = info_gain[att]
+            if ig > max_ig:
+                max_ig = ig
+                max_att = att
+        top_n[max_att] = max_ig
+        info_gain.pop(max_att)
+        top_att.append(max_att)
+        dt_input.append(test[max_att])
+    arr = []
+    for i in range(len(dt_input[0])):   # Done to fit the format of the decision tree where each point is its own array
+        output = [0] * TOP_N
+        for j in range(TOP_N):
+            output[j] = dt_input[j][i]
+        arr.append(output)
+    print(top_att)
+    clf = tree.DecisionTreeClassifier(criterion = "entropy", splitter = "best", max_depth = 3, max_features = TOP_N)
+    clf = clf.fit(arr, train_label)
+    return clf
+
+
+''' ---------- MAIN ---------- '''
 
 data_pop, attributes = get_data(CURRENT_TOP)
 data, attributes = get_data(PLAYLIST)
@@ -134,7 +173,6 @@ data_pop = standardize(data_pop, int_att)
 create_histograms(data, data_pop, int_att)
 groups = create_groups(data, int_att)
 info_gain = information_gain(groups, int_att)
-print(info_gain)
-
-
-
+    
+clf = decision_tree(info_gain, data, data[LABEL])
+tree.plot_tree(clf) 
