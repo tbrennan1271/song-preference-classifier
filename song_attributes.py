@@ -7,6 +7,8 @@ Created on Sat Apr  4 17:38:22 2020
 """
 
 import csv
+import copy
+import random
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import tree
@@ -19,6 +21,7 @@ CURRENT_TOP = 'Top_Playlist.csv'
 LABEL = 'LIKE'
 THRESHOLD_LIM = 5       # The number of sections the attributes will be divided into for the information gain
 TOP_N = 3               # Top n information gains to use in decision tree
+TEST_PERCENT = .2
 
 
 ''' ---------- METHODS ---------- '''
@@ -47,6 +50,18 @@ def get_data(name):
                     data[attribute[i]] = []
                 
     return data, attribute
+
+# Splits data based on TEST_PERCENT
+def data_split(input_data):
+    training_data = copy.copy(input_data)
+    test_data = {}
+    for key in input_data:
+        test_data[key] = []
+    for i in range(int(len(input_data[LABEL]) * TEST_PERCENT)):
+        index = random.randrange(len(training_data[LABEL]))
+        for key in input_data:
+            test_data[key].append(training_data[key].pop(index)) 
+    return training_data, test_data
 
 # Just creates an array of attributes that doesn't contain string values or the labels
 def att_without_str(data, attribute):
@@ -168,11 +183,11 @@ def decision_tree(info_gain, test, train_label):
 data_pop, attributes = get_data(CURRENT_TOP)
 data, attributes = get_data(PLAYLIST)
 int_att = att_without_str(data, attributes)
-data = standardize(data, int_att)
-data_pop = standardize(data_pop, int_att)
 create_histograms(data, data_pop, int_att)
-groups = create_groups(data, int_att)
+train, test = data_split(data)
+train = standardize(train, int_att)
+groups = create_groups(train, int_att)
 info_gain = information_gain(groups, int_att)
     
-clf = decision_tree(info_gain, data, data[LABEL])
+clf = decision_tree(info_gain, train, train[LABEL])
 tree.plot_tree(clf) 
